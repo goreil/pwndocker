@@ -65,11 +65,15 @@ RUN echo 'eval "$(starship init bash)"' >> /root/.bashrc
 
 # Create User
 # User setup with sudo
+RUN apt-get -y update && \
+    apt install -y sudo && \
+    rm -rf /var/lib/apt/lists/*
+
 ENV USER=hacker
 RUN useradd -m -s /bin/bash ${USER} && \
     usermod -aG sudo ${USER}
 
-RUN mkdir /etc/sudoers.d/ && echo "${USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-${USER} \
+RUN echo "${USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-${USER} \
     && chmod 440 /etc/sudoers.d/90-${USER}
 USER ${USER}
 WORKDIR /home/${USER}
