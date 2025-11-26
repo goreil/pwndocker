@@ -1,5 +1,23 @@
 Pwndocker
 =========
+A docker environment based on https://github.com/skysider/pwndocker with custom changes
+* Base image is `ubuntu:latest` 
+* Changed from `pip` to `uv pip`
+* Add a `hacker` user to run as non-root
+
+* Remove Timezone 
+* Remove compiled glibcs and libcdb (Reason: currently not needed)
+* Remove ida debug server
+
+## Usage
+```
+docker build -t dockerpwn .
+# In the challenge folder
+docker run --rm -v .:/challenge -it pwndocker
+```
+
+
+# Pwndocker
 A docker environment for pwn in ctf based on **phusion/baseimage:jammy-1.0.4**, which is a modified ubuntu 22.04 baseimage for docker
 
 ### Usage

@@ -1,9 +1,6 @@
-FROM phusion/baseimage:jammy-1.0.4
-LABEL maintainer="skysider <skysider@163.com>"
+FROM ubuntu:latest
 
-ENV DEBIAN_FRONTEND noninteractive
-
-ENV TZ Asia/Shanghai
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN dpkg --add-architecture i386 && \
     apt-get -y update && \
@@ -14,14 +11,11 @@ RUN dpkg --add-architecture i386 && \
     lib32stdc++6 \
     g++-multilib \
     cmake \
-    ipython3 \
     vim \
     net-tools \
     iputils-ping \
     libffi-dev \
     libssl-dev \
-    python3-dev \
-    python3-pip \
     build-essential \
     ruby \
     ruby-dev \
@@ -32,13 +26,11 @@ RUN dpkg --add-architecture i386 && \
     wget \
     gdb \
     gdb-multiarch \
-    netcat \
     socat \
     git \
     patchelf \
     gawk \
     file \
-    python3-distutils \
     bison \
     rpm2cpio cpio \
     zstd \
@@ -46,30 +38,13 @@ RUN dpkg --add-architecture i386 && \
     tzdata --fix-missing && \
     rm -rf /var/lib/apt/lists/*
 
-RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && \
-    dpkg-reconfigure -f noninteractive tzdata
+#    python3-distutils \
+    # python3-pip \
+    # ipython3 \
+    # python3-dev \
 
-RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-    
-RUN version=$(curl -s https://api.github.com/repos/radareorg/radare2/releases/latest | grep -P '"tag_name": "(.*)"' -o| awk '{print $2}' | awk -F"\"" '{print $2}') && \
-    wget https://github.com/radareorg/radare2/releases/download/${version}/radare2_${version}_amd64.deb && \
-    dpkg -i radare2_${version}_amd64.deb && rm radare2_${version}_amd64.deb
 
-RUN python3 -m pip config set global.index-url http://pypi.tuna.tsinghua.edu.cn/simple && \
-    python3 -m pip config set global.trusted-host pypi.tuna.tsinghua.edu.cn && \
-    python3 -m pip install -U pip && \
-    python3 -m pip install --no-cache-dir \
-    ropgadget \
-    z3-solver \
-    smmap2 \
-    apscheduler \
-    ropper \
-    unicorn \
-    keystone-engine \
-    capstone \
-    angr \
-    pebble \
-    r2pipe
+RUN git clone --depth 1 https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh
 
 RUN gem install elftools one_gadget seccomp-tools && rm -rf /var/lib/gems/*/cache/*
 
@@ -83,49 +58,49 @@ RUN git clone --depth 1 https://github.com/scwuaptx/Pwngdb.git ~/Pwngdb && \
 
 RUN wget -O ~/.gdbinit-gef.py -q http://gef.blah.cat/py
 
-RUN git clone --depth 1 https://github.com/niklasb/libc-database.git libc-database && \
-    cd libc-database && ./get ubuntu debian || echo "/libc-database/" > ~/.libcdb_path && \
-    rm -rf /tmp/*
 
-WORKDIR /ctf/work/
+# Customization
+RUN curl -sS https://starship.rs/install.sh | sh -s -- --yes
+RUN echo 'eval "$(starship init bash)"' >> /root/.bashrc
 
-COPY --from=skysider/glibc_builder64:2.19 /glibc/2.19/64 /glibc/2.19/64
-COPY --from=skysider/glibc_builder32:2.19 /glibc/2.19/32 /glibc/2.19/32
+# Create User
+# User setup with sudo
+ENV USER=hacker
+RUN useradd -m -s /bin/bash ${USER} && \
+    usermod -aG sudo ${USER}
 
-COPY --from=skysider/glibc_builder64:2.23 /glibc/2.23/64 /glibc/2.23/64
-COPY --from=skysider/glibc_builder32:2.23 /glibc/2.23/32 /glibc/2.23/32
+RUN mkdir /etc/sudoers.d/ && echo "${USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-${USER} \
+    && chmod 440 /etc/sudoers.d/90-${USER}
+USER ${USER}
+WORKDIR /home/${USER}
 
-COPY --from=skysider/glibc_builder64:2.24 /glibc/2.24/64 /glibc/2.24/64
-COPY --from=skysider/glibc_builder32:2.24 /glibc/2.24/32 /glibc/2.24/32
+# Python uv setup
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh 
+ENV PATH="/home/${USER}/.local/bin:${PATH}"
 
-COPY --from=skysider/glibc_builder64:2.27 /glibc/2.27/64 /glibc/2.27/64
-COPY --from=skysider/glibc_builder32:2.27 /glibc/2.27/32 /glibc/2.27/32
+# pwntools currently doesn't work on 3.13
+RUN uv venv --python 3.12
+RUN uv pip install --no-cache \
+    ipython \
+    ropgadget \
+    z3-solver \
+    smmap2 \
+    apscheduler \
+    ropper \
+    unicorn \
+    keystone-engine \
+    capstone \
+    angr \
+    pebble \
+    pwntools \
+    r2pipe
 
-COPY --from=skysider/glibc_builder64:2.28 /glibc/2.28/64 /glibc/2.28/64
-COPY --from=skysider/glibc_builder32:2.28 /glibc/2.28/32 /glibc/2.28/32
+### Quality of life ###
+ENV TERM=xterm-256color
+RUN git clone --depth 1 https://github.com/junegunn/fzf.git .fzf
+RUN .fzf/install
 
-COPY --from=skysider/glibc_builder64:2.29 /glibc/2.29/64 /glibc/2.29/64
-COPY --from=skysider/glibc_builder32:2.29 /glibc/2.29/32 /glibc/2.29/32
+RUN echo 'eval "$(starship init bash)"' >> .bashrc
+RUN echo 'source /home/hacker/.venv/bin/activate' >> .bashrc
 
-COPY --from=skysider/glibc_builder64:2.30 /glibc/2.30/64 /glibc/2.30/64
-COPY --from=skysider/glibc_builder32:2.30 /glibc/2.30/32 /glibc/2.30/32
-
-COPY --from=skysider/glibc_builder64:2.33 /glibc/2.33/64 /glibc/2.33/64
-COPY --from=skysider/glibc_builder32:2.33 /glibc/2.33/32 /glibc/2.33/32
-
-COPY --from=skysider/glibc_builder64:2.34 /glibc/2.34/64 /glibc/2.34/64
-COPY --from=skysider/glibc_builder32:2.34 /glibc/2.34/32 /glibc/2.34/32
-
-COPY --from=skysider/glibc_builder64:2.35 /glibc/2.35/64 /glibc/2.35/64
-COPY --from=skysider/glibc_builder32:2.35 /glibc/2.35/32 /glibc/2.35/32
-
-COPY --from=skysider/glibc_builder64:2.36 /glibc/2.36/64 /glibc/2.36/64
-COPY --from=skysider/glibc_builder32:2.36 /glibc/2.36/32 /glibc/2.36/32
-
-COPY linux_server linux_server64  /ctf/
-
-RUN chmod a+x /ctf/linux_server /ctf/linux_server64
-
-RUN python3 -m pip install --no-cache-dir pwntools
-
-CMD ["/sbin/my_init"]
+CMD [ "/bin/bash" ]
