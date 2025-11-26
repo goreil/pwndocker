@@ -35,39 +35,20 @@ RUN dpkg --add-architecture i386 && \
     rpm2cpio cpio \
     zstd \
     zsh \
-    tzdata --fix-missing && \
+    curl \
+    sudo && \
     rm -rf /var/lib/apt/lists/*
-
-#    python3-distutils \
-    # python3-pip \
-    # ipython3 \
-    # python3-dev \
 
 
 RUN git clone --depth 1 https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh
 
 RUN gem install elftools one_gadget seccomp-tools && rm -rf /var/lib/gems/*/cache/*
 
-RUN git clone --depth 1 https://github.com/pwndbg/pwndbg && \
-    cd pwndbg && chmod +x setup.sh && ./setup.sh
-
-RUN git clone --depth 1 https://github.com/scwuaptx/Pwngdb.git ~/Pwngdb && \
-    cd ~/Pwngdb && mv .gdbinit .gdbinit-pwngdb && \
-    sed -i "s?source ~/peda/peda.py?# source ~/peda/peda.py?g" .gdbinit-pwngdb && \
-    echo "source ~/Pwngdb/.gdbinit-pwngdb" >> ~/.gdbinit
-
-RUN wget -O ~/.gdbinit-gef.py -q http://gef.blah.cat/py
-
-
 # Customization
 RUN curl -sS https://starship.rs/install.sh | sh -s -- --yes
 RUN echo 'eval "$(starship init bash)"' >> /root/.bashrc
 
 # Create User
-# User setup with sudo
-RUN apt-get -y update && \
-    apt install -y sudo && \
-    rm -rf /var/lib/apt/lists/*
 
 ENV USER=hacker
 RUN useradd -m -s /bin/bash ${USER} && \
@@ -82,7 +63,7 @@ WORKDIR /home/${USER}
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh 
 ENV PATH="/home/${USER}/.local/bin:${PATH}"
 
-# pwntools currently doesn't work on 3.13
+# pwntools currently doesn't work on 3.12
 RUN uv venv --python 3.12
 RUN uv pip install --no-cache \
     ipython \
@@ -99,6 +80,16 @@ RUN uv pip install --no-cache \
     pwntools \
     r2pipe
 
+### Debugging tools ###
+RUN git clone --depth 1 https://github.com/pwndbg/pwndbg && \
+    cd pwndbg && chmod +x setup.sh && ./setup.sh
+
+RUN git clone --depth 1 https://github.com/scwuaptx/Pwngdb.git ~/Pwngdb && \
+    cd ~/Pwngdb && mv .gdbinit .gdbinit-pwngdb && \
+    sed -i "s?source ~/peda/peda.py?# source ~/peda/peda.py?g" .gdbinit-pwngdb && \
+    echo "source ~/Pwngdb/.gdbinit-pwngdb" >> ~/.gdbinit
+
+RUN wget -O ~/.gdbinit-gef.py -q http://gef.blah.cat/py
 ### Quality of life ###
 ENV TERM=xterm-256color
 RUN git clone --depth 1 https://github.com/junegunn/fzf.git .fzf
